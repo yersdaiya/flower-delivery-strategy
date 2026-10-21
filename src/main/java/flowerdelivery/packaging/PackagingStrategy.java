@@ -1,4 +1,6 @@
 package flowerdelivery.packaging;
 
-public class PackagingStrategy {
+public interface PackagingStrategy {
+    String getPackagingDescription();
+    double calculatePackagingCost();
 }
