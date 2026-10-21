@@ -1,88 +1,44 @@
-# Flower Delivery: Facade over a Three-Stage Chain
+markdown
+# Flower Delivery: Facade & Strategy Patterns (Assignments 4 & 5)
 
-Assignment 4: a Facade layer over three independent subsystems, with durable state (SQLite),
-two-depth compensation and a runnable console demo.
+---
 
-## The domain
+## Part 1: Facade Pattern over a Three-Stage Chain (Assignment 4)
 
-A customer orders flowers. One logical operation, `placeOrder`, drives a chain of three subsystems:
+### The Domain
+A robust flower delivery service managing inventory, payment processing, and delivery logistics with durable SQLite state storage.
 
-| Step | Subsystem (package) | What it does | Entity status |
-|---|---|---|---|
-| **A** | `inventory` | reserves the flowers | `Reservation`: HELD → CONFIRMED / RELEASED |
-| **B** | `delivery` | schedules a courier for a zone | `Delivery`: SCHEDULED → DISPATCHED / CANCELLED |
-| **C** | `payment` | charges the card | `Payment`: PENDING → PAID → REFUNDED |
+### Architecture & Subsystems
+- **Inventory Subsystem:** Manages flower stock and availability (`inventory` package).
+- **Payment Subsystem:** Handles secure payment transactions (`payment` package).
+- **Delivery Subsystem:** Manages dispatch and delivery routes (`delivery` package).
+- **Facade (`FlowerDeliveryFacade`):** A single unified entry point hiding subsystem complexities from the client.
 
-Each subsystem has its own pure business-logic class (`StockRules`, `ZoneRules`, `PaymentRules`),
-its own persistence gateway (`InventoryRepository`, `DeliveryRepository`, `PaymentRepository`),
-its own entity with legal status transitions, its own service and its own exception type.
-No subsystem imports another subsystem or the facade. Each can be used alone (see the tests in
-`src/test/java/flowerdelivery/{inventory,delivery,payment}`).
+---
 
-### Facades (`flowerdelivery.facade`)
+## Part 2: Strategy Pattern Implementation (Assignment 5)
 
-* `FlowerDeliveryFacade`: the client workflow. `placeOrder(...)` runs A → B → C with real sequencing and
-  decision logic; `resumePending()` is called at start-up and rolls back chains interrupted by a restart.
-* `FlowerDeliveryAdminFacade`: the narrow administrative facade: `listAll`, `listUnfinished`, `inspect`,
-  `compensateManually`.
-* `ChainCompensator` (package-private): the shared rollback logic. It reads the persisted status of each
-  step and only undoes what is really on disk (C if `PAID`, B if `SCHEDULED`, A if `HELD`), so it is safe to run twice.
+### 1. Classes and Responsibilities (SRP)
 
-### Durable state
+| Class Name | Responsibility |
+| :--- | :--- |
+| `PricingStrategy` | Interface defining calculation method. |
+| `StandardPricingStrategy` | Calculates standard delivery cost. |
+| `ExpressPricingStrategy` | Computes urgent delivery pricing. |
+| `HolidayPricingStrategy` | Evaluates surge holiday pricing dynamically. |
+| `DeliveryPricingContext` | Executes chosen pricing strategy. |
+| `DeliverySelector` | Selects pricing strategy automatically based on rules. |
+| `ExternalFactorProvider` | Isolates external pricing factor source. |
+| `FakeFactorProvider` | Simulates external pricing factor data for testing. |
+| `PackagingStrategy` | Interface defining bouquet presentation. |
+| `EcoPackaging` | Computes eco-friendly packaging fee. |
+| `LuxuryPackaging` | Computes premium gift box fee. |
+| `MinimalistPackaging` | Computes transparent wrap fee. |
+| `PackagingContext` | Executes chosen packaging strategy. |
 
-Everything lives in one SQLite file, `data/flowers.db`. Each subsystem writes its own tables.
-Chain progress is stored in the facade-owned table `order_process`
-(`PENDING_B`, `PENDING_C`, `COMPLETED`, `COMPENSATING`, `COMPENSATED`) together with the ids of the
-reservation, delivery and payment. After a restart the facade reads this table, not memory.
+### 2. Why Strategy Pattern (not State or Template Method)?
+The **Strategy Pattern** is chosen because our algorithms (pricing and packaging) are completely interchangeable at runtime based on external rules and user choice. Unlike the *Template Method*, which defines a skeleton of an algorithm in a base class using inheritance, Strategy encapsulates family algorithms behind a clean interface favoring composition. Unlike the *State Pattern*, where an object alters its behavior when its internal state changes and states transition from one to another autonomously, Strategy instances are independent, stateless, and explicitly chosen or injected by clients or selectors depending on external conditions.
 
-## Run it
-
-Requirements: JDK 17+ and Maven.
-
-```bash
-mvn -q compile exec:java -Dexec.mainClass=flowerdelivery.Main
-```
-
-(Alternatively, run `Main` from the IDE.)
-
-**Reset the persisted store to a clean state:** choose menu option `8`, or delete the file `data/flowers.db`
-before starting. The stock is re-seeded automatically (Rose 50, Tulip 30, Lily 20).
-
-### Demo menu
-
-| Option | What it shows |
-|---|---|
-| 1 | flower stock |
-| 2 | place an order with your own input |
-| 3 | B fails after A committed: only A is compensated |
-| 4 | C fails after A and B committed: B is cancelled, then A is released |
-| 5 | all orders, read from disk |
-| 6 | inspect one order (status of A, B, C and the failure reason) |
-| 7 | compensate an unfinished order manually |
-| 8 | reset all data |
-
-How the failures are reached with real input:
-
-* **B fails**: the zone is not covered (anything except `CENTER`, `LEFT_BANK`, `RIGHT_BANK`) or the zone already
-  has 3 scheduled deliveries ("no courier available").
-* **C fails**: the card is not 16 digits, or ends with `0000` (declined by the bank), or the amount is out of range.
-* **Failure before anything commits**: ordering more flowers than are in stock, a quantity outside 1-50# flower-delivery
-
-/// package flowerdelivery.facade;
-
-import flowerdelivery.inventory.InventoryService;
-import flowerdelivery.delivery.DeliveryService;
-
-public class FlowerDeliveryPartnerFacade {
-private final InventoryService inventoryService;
-private final DeliveryService deliveryService;
-
-    public FlowerDeliveryPartnerFacade(InventoryService inventoryService, DeliveryService deliveryService) {
-        this.inventoryService = inventoryService;
-        this.deliveryService = deliveryService;
-    }
-
-    public int checkPartnerStock(int flowerId) {
-        return inventoryService.availableQuantity(flowerId);
-    }
-}
+### 3. Refactoring Git Commits
+- **Before Refactoring (Bad Way with switch-case):** [View Commit](https://github.com/yersdaiya/flower-delivery-strategy/commit/3281d48)
+- **After Refactoring (Strategy Pattern Applied):** [View Commit History](https://github.com/yersdaiya/flower-delivery-strategy/commits/main/)
