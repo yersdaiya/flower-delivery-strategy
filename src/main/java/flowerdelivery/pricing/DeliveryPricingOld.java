@@ -1,7 +1,6 @@
 package flowerdelivery.pricing;
 
 public class DeliveryPricingOld {
-    // Барлық логика бір жерде (if-else көмегімен) — бұл рефакторингке дейінгі ескі тәсіл ("bad" way)
     public double calculatePrice(String strategyType, double basePrice, double distanceKm) {
         if (strategyType.equalsIgnoreCase("STANDARD")) {
             return basePrice + (distanceKm * 150);
